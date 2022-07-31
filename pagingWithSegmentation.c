@@ -31,10 +31,14 @@ int TLB_MISS_WITHOUT_PAGE_FAULT = 10;
 int text;
 int bss;
 int data;
+int physicalFrame[3];
 
 int main(int argc, char *argv[]){
     
-    readFromFile(argv[1]);
+    if ( findSegmentInfos(argv[1]) ){
+        printf("Executable file NOT FOUND\n");
+        return 1;
+    }
     int segments[3];
     segments[0] = text/1024;
     if(text % 1024 > 0){
@@ -52,10 +56,38 @@ int main(int argc, char *argv[]){
     printf("Number of pages in segment[1]:%d\n",segments[1]);
     printf("Number of pages in segment[2]:%d\n",segments[2]);
 
+    physicalFrame[0] = segments[0] / 2;
+    if(segments[0] % 2 == 1){
+        physicalFrame[0] = physicalFrame[0] + 1;
+    }
+    physicalFrame[1] = segments[1] / 2;
+    if(segments[1] % 2 == 1){
+        physicalFrame[1] = physicalFrame[1] + 1;
+    }
+    physicalFrame[2] = segments[2] / 2;
+    if(segments[2] % 2 == 1){
+        physicalFrame[2] = physicalFrame[2] + 1;
+    }
+    printf("Number of physical frame in segment_0 :%d\n",physicalFrame[0]);
+    printf("Number of physical frame in segment_1 :%d\n",physicalFrame[1]);
+    printf("Number of physical frame in segment_2 :%d\n",physicalFrame[2]);
+    
+    runSimulaton(argv[2]);
     return 0; 
 }
 
-int readFromFile( char *executableFileName){
+void runSimulaton(char *filename){
+    FILE *file;
+    char buffer[100];
+    file = fopen(filename, "r");
+    while(fgets(buffer, 99, file) != NULL){
+        int segment_number;
+        int page_number;
+        printf("%s",buffer);
+    }
+}
+
+int findSegmentInfos( char *executableFileName){
     FILE *file;
     char buffer[100];
     char command[] = "size ";
@@ -68,10 +100,7 @@ int readFromFile( char *executableFileName){
     else{
         int row = 0;
         while(fgets(buffer, 99, file) != NULL){
-            if(row == 0){
-                printf("%s", buffer);
-            }
-            else if(row == 1){
+            if(row == 1){
                 char *str = buffer;
                 char * pch;
                 pch = strtok (str," ,.");
