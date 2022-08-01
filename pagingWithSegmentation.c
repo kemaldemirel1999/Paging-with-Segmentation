@@ -8,9 +8,9 @@
 #include <sched.h>
 
 #define PAGE_SIZE 1024
-#define TLB_HIT 1
-#define TLB_MISS_WITHOUT_PAGE_FAULT 10
-#define TLB_MISS_WITH_PAGE_FAULT 100
+#define TLB_HIT 0.001
+#define TLB_MISS_WITHOUT_PAGE_FAULT 0.01
+#define TLB_MISS_WITH_PAGE_FAULT 0.1
 
 /*
     TLB Replacement policy: FIFO
@@ -99,32 +99,34 @@ void printSimulationResults(){
 }
 void doTLBOperations(int segment_number, int page_number){
     int invalid = 0;
-    if(segment_number < 0 || segment_number > 2){
+
+    // Invalid input detected
+    if(isItInvalid(segment_number, page_number) == 0){
         numberOfInvalidReference++;
         invalid = 1;
     }
-    else if( page_number > segments[segment_number]-1 || page_number < 0){
-        numberOfInvalidReference++;
-        invalid = 1;
-    }
-    if(IsItInPhysicalMemory(MEMORY, segment_number, page_number)){
+    // Physical memory contains
+    if(invalid != 1 && IsItInPhysicalMemory(MEMORY, segment_number, page_number)){
         numberOfAccess++;
     }
-    else if( IsItInTLB(TLB, segment_number, page_number) == 0){
-        sleep(TLB_HIT/1000);
+    // TLB contains
+    else if(invalid != 1 && IsItInTLB(TLB, segment_number, page_number) == 0){
+        sleep(TLB_HIT);
         totalDelay = totalDelay + TLB_HIT;
         numberOfAccess++; 
     }
     else{
-        if(invalid){
-            sleep(TLB_MISS_WITH_PAGE_FAULT/1000);
+        //Invalid input
+        if(invalid == 1){ 
+            sleep(TLB_MISS_WITH_PAGE_FAULT);
             totalDelay = totalDelay + TLB_MISS_WITH_PAGE_FAULT;
             numberOfAccess++;
             numberOfTLBMiss++;
             numberOfPageFault++;
         }
+        // TLB does not contain
         else{
-            sleep(TLB_MISS_WITHOUT_PAGE_FAULT/1000);
+            sleep(TLB_MISS_WITHOUT_PAGE_FAULT);
             totalDelay = totalDelay + TLB_MISS_WITHOUT_PAGE_FAULT;     
             int index = findPlaceInTLB(TLB);
             TLB[index][0] = 0;
@@ -135,7 +137,15 @@ void doTLBOperations(int segment_number, int page_number){
         }
     }
 }
-
+int isItInvalid(int segment_number, int page_number){
+    if(segment_number < 0 || segment_number > 2){
+        return 0;
+    }
+    else if( page_number > segments[segment_number]-1 || page_number < 0){
+        return 0;
+    }
+    return 1;
+}
 int IsItInPhysicalMemory(int memory[50][2], int segment_number, int page_number){
     for(int i=0; i<50; i++){
         if( memory[i][0] == segment_number && memory[50][1] == page_number){
