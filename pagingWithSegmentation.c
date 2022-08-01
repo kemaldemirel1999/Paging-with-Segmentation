@@ -7,15 +7,12 @@
 #include <errno.h>
 #include <sched.h>
 
-int TLB_HIT = 1;
-int TLB_MISS_WITH_PAGE_FAULT = 100;
-int TLB_MISS_WITHOUT_PAGE_FAULT = 10;
 
 /*
     TLB Replacement policy: FIFO
     Virtual Memory Replacement Policy: LRU Replacement Algorithm
     Segment-page numbers information is sufficient for simulation.
-    Every segment has fixed size (1kB) pages.
+    Every segment has fixed size 1kB (1024 byte) pages.
 
     Example of 'size' command response:
     text        -> 1691
@@ -28,18 +25,29 @@ int TLB_MISS_WITHOUT_PAGE_FAULT = 10;
 
 // Runs with byte values
 
+int TLB_HIT = 1;
+int TLB_MISS_WITH_PAGE_FAULT = 100;
+int TLB_MISS_WITHOUT_PAGE_FAULT = 10;
+
+int numberOfTLBMiss = 0;
+int numberOfAccess = 0;
+int numberOfPageFault = 0;
+int totalDelay = 0;
+int numberOfInvalidReference = 0;
+
 int text;
 int bss;
 int data;
+
 int physicalFrame[3];
+int segments[3];
+int TLB[50][2];
 
 int main(int argc, char *argv[]){
-    
     if ( findSegmentInfos(argv[1]) ){
         printf("Executable file NOT FOUND\n");
         return 1;
     }
-    int segments[3];
     segments[0] = text/1024;
     if(text % 1024 > 0){
         segments[0] = segments[0] + 1;
@@ -80,13 +88,44 @@ void runSimulaton(char *filename){
     FILE *file;
     char buffer[100];
     file = fopen(filename, "r");
+    clearTLB(TLB);
     while(fgets(buffer, 99, file) != NULL){
         int segment_number;
         int page_number;
-        printf("%s",buffer);
+        sscanf( buffer, "%d %d", &segment_number, &page_number);
+        printf("%d %d\n",segment_number, page_number);
     }
 }
-
+void clearTLB(int tlb[50][2]){
+    for(int i=0; i<50; i++){
+        tlb[i][1] = -1;
+    }
+}
+void increaseTimeStamp(int tlb[50][2]){
+    for(int i=0; i<50; i++){
+        if(tlb[i][1] != -1){
+            tlb[i][0] = tlb[i][0] + 1;
+        }
+    }
+}
+int findPlaceInTLB(int tlb[50][2]){
+    for(int i=0; i<50; i++){
+        if(tlb[i][1] == -1){
+            return i;
+        }
+    }
+    int oldestIndex = findTheOldest(tlb);
+    return oldestIndex;
+}
+int findTheOldest(int tlb[50][2]){
+    int oldestIndex = 0;
+    for(int i=0; i<50; i++){
+        if(tlb[oldestIndex][0] < tlb[i][0]){
+            oldestIndex = i;
+        }
+    }
+    return oldestIndex;
+}
 int findSegmentInfos( char *executableFileName){
     FILE *file;
     char buffer[100];
