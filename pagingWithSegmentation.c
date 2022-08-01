@@ -49,18 +49,8 @@ int main(int argc, char *argv[]){
     if ( runSimulaton(argv[1], argv[2]) == -1){
         return 1;
     }
-    double number_of_access = numberOfAccess;
-    double tlb_miss_rate = numberOfTLBMiss / number_of_access;
-    printf("Number of TLB Miss:%d\n",numberOfTLBMiss);
-    printf("TLB Miss Rate:%f\n",tlb_miss_rate);
-
-    double page_fault_rate = numberOfPageFault / number_of_access;
-    printf("Number of Page Fault:%d\n",numberOfPageFault);
-    printf("Page Fault Miss Rate:%f\n",page_fault_rate);
-
-    printf("Total Delay:%d\n",totalDelay);
-
-    printf("Number of Invalid Reference:%d\n",numberOfInvalidReference);
+    printf("\n");
+    printSimulationResults();
     return 0;
 }
 
@@ -93,6 +83,20 @@ int runSimulaton(char *executableFile, char *filename){
     return 0;
 }
 
+void printSimulationResults(){
+    double number_of_access = numberOfAccess;
+    double tlb_miss_rate = numberOfTLBMiss / number_of_access;
+    printf("Number of TLB Miss:%d\n",numberOfTLBMiss);
+    printf("TLB Miss Rate:%f\n",tlb_miss_rate);
+
+    double page_fault_rate = numberOfPageFault / number_of_access;
+    printf("Number of Page Fault:%d\n",numberOfPageFault);
+    printf("Page Fault Miss Rate:%f\n",page_fault_rate);
+
+    printf("Total Delay:%d\n",totalDelay);
+
+    printf("Number of Invalid Reference:%d\n",numberOfInvalidReference);
+}
 void doTLBOperations(int segment_number, int page_number){
     int invalid = 0;
     if(segment_number < 0 || segment_number > 2){
