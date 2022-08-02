@@ -64,11 +64,12 @@ int runSimulaton(char *executableFile, char *filename){
     findSegmentPages();
     findPhysicalFrames();
     clearTLB(TLB);
+    
     int total_frame = (physicalFrame[0] + physicalFrame[1] + physicalFrame[2]);
     PHYSICAL_MEMORY = (int**)malloc( total_frame * sizeof(int*));
     for (int i = 0; i < total_frame; i++)
         PHYSICAL_MEMORY[i] = (int*)malloc(2 * sizeof(int));
-
+    clearPhysicalMemory(PHYSICAL_MEMORY);
 
     FILE *file;
     char buffer[100];
@@ -86,46 +87,76 @@ int runSimulaton(char *executableFile, char *filename){
 
 
 void doOperations(int segment_number, int page_number){
-    int invalid = 0;
-
-    // Invalid input detected
-    if(isItInvalid(segment_number, page_number) == 0){
+    
+    int invalidReference = isItInvalid(segment_number, page_number);
+    if(invalidReference == 0){
         numberOfInvalidReference++;
-        invalid = 1;
-    }
-    // Physical memory contains
-    if(invalid != 1 && IsItInPhysicalMemory(PHYSICAL_MEMORY, segment_number, page_number)){
-        numberOfAccess++;
-    }
-    // TLB contains
-    else if(invalid != 1 && IsItInTLB(TLB, segment_number, page_number) == 0){
-        sleep(TLB_HIT);
-        totalDelay = totalDelay + TLB_HIT;
-        numberOfAccess++; 
     }
     else{
-        //Invalid input
-        if(invalid == 1){ 
+        if(IsItInPhysicalMemory(PHYSICAL_MEMORY, segment_number, page_number) == 0){
+            numberOfAccess++;
+        }
+        else if(IsItInTLB(TLB, segment_number, page_number) == 0){
+            sleep(TLB_HIT);
+            totalDelay += TLB_HIT*1000;
+            numberOfAccess++;
+        }
+        else if(IsItInPageTable(PAGE_TABLE, segment_number, page_number) == 0){
+            sleep(TLB_MISS_WITHOUT_PAGE_FAULT);
+            totalDelay += TLB_HIT*1000;
+            numberOfAccess++;
+            numberOfTLBMiss++;
+            int index = getIndexInPageTable(PAGE_TABLE, segment_number, page_number);
+            increaseUsageCounterInPageTable(PAGE_TABLE, index);
+        }
+        else{
             sleep(TLB_MISS_WITH_PAGE_FAULT);
-            totalDelay = totalDelay + TLB_MISS_WITH_PAGE_FAULT;
+            totalDelay += TLB_MISS_WITH_PAGE_FAULT*1000;
             numberOfAccess++;
             numberOfTLBMiss++;
             numberOfPageFault++;
-        }
-        // TLB does not contain
-        else{
-            sleep(TLB_MISS_WITHOUT_PAGE_FAULT);
-            totalDelay = totalDelay + TLB_MISS_WITHOUT_PAGE_FAULT;     
-            int index = findPlaceInTLB(TLB);
-            TLB[index][0] = 0;
-            TLB[index][1] = segment_number;
-            TLB[index][2] = page_number;
-            numberOfTLBMiss++;
-            numberOfAccess++;
+            int index = findPlaceInPageTable(PAGE_TABLE);
+            PAGE_TABLE[index][0] = 0;
+            PAGE_TABLE[index][1] = segment_number;
+            PAGE_TABLE[index][2] = page_number;
         }
     }
+
 }
 
+// Update Usage counter for LRU Replacement Algorithm in Virtual Memory
+void increaseUsageCounterInPageTable(int page_table[][3], int index){
+    page_table[index][0] = page_table[index][0] + 1;
+}
+
+// Find place in Virtual Memory using LRU algorithm.
+int findPlaceInPageTable(int page_table[][3]){
+    int lru_index = 0;
+    for(int i=0; i< (sizeof(page_table) / sizeof(page_table[0])); i++){
+        if(page_table[i][0] < page_table[lru_index][0]){
+            lru_index = i;
+        }
+    }
+    return lru_index;
+}
+
+int getIndexInPageTable(int page_table[][3], int segment_number, int page_number){
+    for(int i=0; i< (sizeof(page_table) / sizeof(page_table[0])); i++){
+        if(page_table[i][1] == segment_number && page_table[i][2] == page_number){
+            return i;
+        }
+    }
+    return -1; // Page Fault
+}
+// Checks if the value is in virtual memory and returns its index. Otherwise returns -1 (page fault)
+int IsItInPageTable(int page_table[][3], int segment_number, int page_number){
+    for(int i=0; i< (sizeof(page_table) / sizeof(page_table[0])); i++){
+        if(page_table[i][1] == segment_number && page_table[i][2] == page_number){
+            return 0;
+        }
+    }
+    return -1; // Page Fault
+}
 // Checks if the segment_number and page_number is invalid
 int isItInvalid(int segment_number, int page_number){
     if(segment_number < 0 || segment_number > 2){
