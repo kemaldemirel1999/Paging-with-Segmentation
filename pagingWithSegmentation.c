@@ -11,8 +11,6 @@
 #define TLB_HIT 0.001
 #define TLB_MISS_WITHOUT_PAGE_FAULT 0.01
 #define TLB_MISS_WITH_PAGE_FAULT 0.1
-#define TLB_LENGTH 50
-#define PAGE_TABLE_LENGTH 100
 
 /*
     TLB Replacement policy: FIFO
@@ -42,9 +40,9 @@ int data;
 int physicalFrame[3];
 int segments[3];
 
-int TLB[TLB_LENGTH][3];
-int **PHYSICAL_MEMORY;
-int PAGE_TABLE[PAGE_TABLE_LENGTH][3];
+int TLB[50][3];
+int PHYSICAL_MEMORY[3][2];
+int PAGE_TABLE[100][3];
 
 int main(int argc, char *argv[]){
     
@@ -64,13 +62,16 @@ int runSimulaton(char *executableFile, char *filename){
     findSegmentPages();
     findPhysicalFrames();
     clearTLB(TLB);
-    
-    int total_frame = (physicalFrame[0] + physicalFrame[1] + physicalFrame[2]);
-    PHYSICAL_MEMORY = (int**)malloc( total_frame * sizeof(int*));
-    for (int i = 0; i < total_frame; i++)
-        PHYSICAL_MEMORY[i] = (int*)malloc(2 * sizeof(int));
     clearPhysicalMemory(PHYSICAL_MEMORY);
+    
+    PHYSICAL_MEMORY[0][0] = 0;
+    PHYSICAL_MEMORY[0][1] = 0;
+    PHYSICAL_MEMORY[1][0] = 1;
+    PHYSICAL_MEMORY[1][1] = 0;
+    PHYSICAL_MEMORY[2][0] = 2;
+    PHYSICAL_MEMORY[2][1] = 0;
 
+    fillPageTable(PAGE_TABLE, filename);
     FILE *file;
     char buffer[100];
     file = fopen(filename, "r");
@@ -81,7 +82,6 @@ int runSimulaton(char *executableFile, char *filename){
         doOperations(segment_number, page_number);
         increaseTimeStamp(TLB);
     }
-
     return 0;
 }
 
@@ -91,23 +91,31 @@ void doOperations(int segment_number, int page_number){
     int invalidReference = isItInvalid(segment_number, page_number);
     if(invalidReference == 0){
         numberOfInvalidReference++;
+        printf("INVALID:%d,%d\n",segment_number, page_number);
     }
     else{
         if(IsItInPhysicalMemory(PHYSICAL_MEMORY, segment_number, page_number) == 0){
             numberOfAccess++;
+            printf("PHYSICAL MEMORY:%d,%d\n",segment_number, page_number);
         }
         else if(IsItInTLB(TLB, segment_number, page_number) == 0){
             sleep(TLB_HIT);
             totalDelay += TLB_HIT*1000;
             numberOfAccess++;
+            printf("IN TLB:%d,%d\n",segment_number, page_number);
         }
         else if(IsItInPageTable(PAGE_TABLE, segment_number, page_number) == 0){
             sleep(TLB_MISS_WITHOUT_PAGE_FAULT);
-            totalDelay += TLB_HIT*1000;
+            totalDelay += TLB_MISS_WITHOUT_PAGE_FAULT*1000;
             numberOfAccess++;
             numberOfTLBMiss++;
             int index = getIndexInPageTable(PAGE_TABLE, segment_number, page_number);
             increaseUsageCounterInPageTable(PAGE_TABLE, index);
+            printf("PAGE TABLE:%d,%d\n",segment_number, page_number);
+            int tlb_index = findPlaceInTLB(TLB);
+            TLB[tlb_index][0] = 0;
+            TLB[tlb_index][1] = segment_number;
+            TLB[tlb_index][2] = page_number;
         }
         else{
             sleep(TLB_MISS_WITH_PAGE_FAULT);
@@ -119,20 +127,46 @@ void doOperations(int segment_number, int page_number){
             PAGE_TABLE[index][0] = 0;
             PAGE_TABLE[index][1] = segment_number;
             PAGE_TABLE[index][2] = page_number;
+            printf("PAGE FAULT:%d,%d\n",segment_number, page_number);
         }
     }
 
 }
 
+void fillPageTable(int page_table[100][3], char *filename){
+    FILE *file;
+    char buffer[100];
+    file = fopen(filename, "r");
+    int index = 0;
+    while( (fgets(buffer, 99, file) != NULL) && index < 100 ){
+        int segment_number;
+        int page_number;
+        sscanf( buffer, "%d %d", &segment_number, &page_number);
+        if(isItInvalid(segment_number,page_number) != 0){
+            page_table[index][0] = 0;
+            page_table[index][1] = segment_number;
+            page_table[index][2] = page_number;
+        }
+        index++;
+    }
+}
+
+void clearPageTable(int page_table[100][3]){
+    for(int i=0; i<100; i++){
+        page_table[i][0] = 0;
+        page_table[i][1] = 0;
+        page_table[i][2] = 0;
+    }
+}
 // Update Usage counter for LRU Replacement Algorithm in Virtual Memory
-void increaseUsageCounterInPageTable(int page_table[][3], int index){
+void increaseUsageCounterInPageTable(int page_table[100][3], int index){
     page_table[index][0] = page_table[index][0] + 1;
 }
 
 // Find place in Virtual Memory using LRU algorithm.
-int findPlaceInPageTable(int page_table[][3]){
+int findPlaceInPageTable(int page_table[100][3]){
     int lru_index = 0;
-    for(int i=0; i< (sizeof(page_table) / sizeof(page_table[0])); i++){
+    for(int i=0; i< 100; i++){
         if(page_table[i][0] < page_table[lru_index][0]){
             lru_index = i;
         }
@@ -140,8 +174,8 @@ int findPlaceInPageTable(int page_table[][3]){
     return lru_index;
 }
 
-int getIndexInPageTable(int page_table[][3], int segment_number, int page_number){
-    for(int i=0; i< (sizeof(page_table) / sizeof(page_table[0])); i++){
+int getIndexInPageTable(int page_table[100][3], int segment_number, int page_number){
+    for(int i=0; i< 100; i++){
         if(page_table[i][1] == segment_number && page_table[i][2] == page_number){
             return i;
         }
@@ -149,8 +183,8 @@ int getIndexInPageTable(int page_table[][3], int segment_number, int page_number
     return -1; // Page Fault
 }
 // Checks if the value is in virtual memory and returns its index. Otherwise returns -1 (page fault)
-int IsItInPageTable(int page_table[][3], int segment_number, int page_number){
-    for(int i=0; i< (sizeof(page_table) / sizeof(page_table[0])); i++){
+int IsItInPageTable(int page_table[100][3], int segment_number, int page_number){
+    for(int i=0; i< 100; i++){
         if(page_table[i][1] == segment_number && page_table[i][2] == page_number){
             return 0;
         }
@@ -169,15 +203,15 @@ int isItInvalid(int segment_number, int page_number){
 }
 
 // Resets the physical memory
-void clearPhysicalMemory(int **memory){
-    for(int i=0; i < ( sizeof(memory)/sizeof(memory[0]) ) ; i++){
+void clearPhysicalMemory(int memory[3][2]){
+    for(int i=0; i < 3 ; i++){
         memory[i][0] = 0;
         memory[i][1] = 0;
     }
 }
 // Checks if the value in Physical Memory
-int IsItInPhysicalMemory(int **memory, int segment_number, int page_number){
-    for(int i=0; i < ( sizeof(memory)/sizeof(memory[0]) ) ; i++){
+int IsItInPhysicalMemory(int memory[3][2], int segment_number, int page_number){
+    for(int i=0; i < 3 ; i++){
         if( memory[i][0] == segment_number && memory[i][1] == page_number){
             return 0;
         }
@@ -186,8 +220,8 @@ int IsItInPhysicalMemory(int **memory, int segment_number, int page_number){
 }
 
 // Clears all the values in TLB
-void clearTLB(int tlb[][3]){
-    for(int i=0; i<TLB_LENGTH; i++){
+void clearTLB(int tlb[50][3]){
+    for(int i=0; i<50; i++){
         tlb[i][0] = 0;
         tlb[i][1] = -1;
         tlb[i][2] = -1;
@@ -195,8 +229,8 @@ void clearTLB(int tlb[][3]){
 }
 
 // Increases the timestamp in TLB for FIFO
-void increaseTimeStamp(int tlb[][3]){
-    for(int i=0; i<TLB_LENGTH; i++){
+void increaseTimeStamp(int tlb[50][3]){
+    for(int i=0; i<50; i++){
         if(tlb[i][1] != -1){
             tlb[i][0] = tlb[i][0] + 1;
         }
@@ -204,8 +238,8 @@ void increaseTimeStamp(int tlb[][3]){
 }
 
 // Finds an index in TLB to replace
-int findPlaceInTLB(int tlb[][3]){
-    for(int i=0; i<TLB_LENGTH; i++){
+int findPlaceInTLB(int tlb[50][3]){
+    for(int i=0; i<50; i++){
         if(tlb[i][1] == -1){
             return i;
         }
@@ -215,8 +249,8 @@ int findPlaceInTLB(int tlb[][3]){
 }
 
 // Checks if the value is in TLB
-int IsItInTLB(int tlb [][3], int segment_number, int page_number){
-    for(int i=0; i<TLB_LENGTH; i++){
+int IsItInTLB(int tlb [50][3], int segment_number, int page_number){
+    for(int i=0; i<50; i++){
         if( tlb[i][1] == segment_number && tlb[i][2] == page_number){
             return 0;
         }
@@ -225,9 +259,9 @@ int IsItInTLB(int tlb [][3], int segment_number, int page_number){
 }
 
 // Returns an index value with a rule of FIFO
-int findTheOldest(int tlb[][3]){
+int findTheOldest(int tlb[50][3]){
     int oldestIndex = 0;
-    for(int i=0; i<TLB_LENGTH; i++){
+    for(int i=0; i<50; i++){
         if(tlb[oldestIndex][0] < tlb[i][0]){
             oldestIndex = i;
         }
@@ -313,6 +347,17 @@ int findSegmentInfos( char *executableFileName){
     return 0;
 }
 
+void printPageTable(int page_table[100][3]){
+    for(int i=0; i<100; i++){
+        printf("page_table[%d]: %d, %d, %d\n",i,page_table[i][0],page_table[i][1],page_table[i][2]);
+    }
+}
+
+void printTLB(int tlb[50][3]){
+    for(int i=0; i<50; i++){
+        printf("tlb[%d]: %d, %d, %d\n",i,tlb[i][0],tlb[i][1],tlb[i][2]);
+    }
+}
 // Prints the simulation results to stdout
 void printSimulationResults(){
     double number_of_access = numberOfAccess;
