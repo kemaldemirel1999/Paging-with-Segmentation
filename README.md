@@ -20,12 +20,19 @@ After simulation, the results are printed to the stdout.
 #HOW THIS SIMULATION WORKS ?
 
 1- First page of every segment is placed in physical memory
+
 2- reference string file is read and simulation starts.
+
 3- If the value is invalid, then read next row in the file and skip that round. Increase numberOfInvalidReference variable.
+
 4- If the value is is TLB, then TLB hit and 1ms latency.
+
 5- If the value is not in TLB, then look at the page table.
+
 6- If the value is in page table, then it is placed to the TLB and TLB Miss without Page fault and 10ms latency.
+
 7- If the value is not in page table, then the value is bring from virtual memory and it is placed both TLB and Page Table.
+
 8- All of the above steps works again until end of the file.
 
 
