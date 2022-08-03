@@ -41,20 +41,16 @@ int physicalFrame[3];
 int segments[3];
 
 int TLB[50][3];
-int PHYSICAL_MEMORY[3][2];
 int PAGE_TABLE[100][3];
 
 int runSimulaton(char *executableFile, char *filename);
 void doOperations(int segment_number, int page_number);
-void fillPageTable(int page_table[100][3], char *filename);
 void clearPageTable(int page_table[100][3]);
 void increaseUsageCounterInPageTable(int page_table[100][3], int index);
 int findPlaceInPageTable(int page_table[100][3]);
 int getIndexInPageTable(int page_table[100][3], int segment_number, int page_number);
 int IsItInPageTable(int page_table[100][3], int segment_number, int page_number);
 int isItInvalid(int segment_number, int page_number);
-void clearPhysicalMemory(int memory[3][2]);
-int IsItInPhysicalMemory(int memory[3][2], int segment_number, int page_number);
 void clearTLB(int tlb[50][3]);
 void increaseTimeStamp(int tlb[50][3]);
 int findPlaceInTLB(int tlb[50][3]);
@@ -85,16 +81,14 @@ int runSimulaton(char *executableFile, char *filename){
     findSegmentPages();
     findPhysicalFrames();
     clearTLB(TLB);
-    clearPhysicalMemory(PHYSICAL_MEMORY);
-    
-    PHYSICAL_MEMORY[0][0] = 0;
-    PHYSICAL_MEMORY[0][1] = 0;
-    PHYSICAL_MEMORY[1][0] = 1;
-    PHYSICAL_MEMORY[1][1] = 0;
-    PHYSICAL_MEMORY[2][0] = 2;
-    PHYSICAL_MEMORY[2][1] = 0;
 
-    fillPageTable(PAGE_TABLE, filename);
+    PAGE_TABLE[0][1] = 0;
+    PAGE_TABLE[0][2] = 0;
+    PAGE_TABLE[1][1] = 1;
+    PAGE_TABLE[1][2] = 0;
+    PAGE_TABLE[2][1] = 2;
+    PAGE_TABLE[2][2] = 0;
+
     FILE *file;
     char buffer[100];
     file = fopen(filename, "r");
@@ -117,11 +111,7 @@ void doOperations(int segment_number, int page_number){
         printf("INVALID:%d,%d\n",segment_number, page_number);
     }
     else{
-        if(IsItInPhysicalMemory(PHYSICAL_MEMORY, segment_number, page_number) == 0){
-            numberOfAccess++;
-            printf("PHYSICAL MEMORY:%d,%d\n",segment_number, page_number);
-        }
-        else if(IsItInTLB(TLB, segment_number, page_number) == 0){
+        if(IsItInTLB(TLB, segment_number, page_number) == 0){
             sleep(TLB_HIT);
             totalDelay += TLB_HIT*1000;
             numberOfAccess++;
@@ -151,28 +141,16 @@ void doOperations(int segment_number, int page_number){
             PAGE_TABLE[index][1] = segment_number;
             PAGE_TABLE[index][2] = page_number;
             printf("PAGE FAULT:%d,%d\n",segment_number, page_number);
+            int tlb_index = findPlaceInTLB(TLB);
+            TLB[tlb_index][0] = 0;
+            TLB[tlb_index][1] = segment_number;
+            TLB[tlb_index][2] = page_number;
         }
+        
     }
 
 }
 
-void fillPageTable(int page_table[100][3], char *filename){
-    FILE *file;
-    char buffer[100];
-    file = fopen(filename, "r");
-    int index = 0;
-    while( (fgets(buffer, 99, file) != NULL) && index < 100 ){
-        int segment_number;
-        int page_number;
-        sscanf( buffer, "%d %d", &segment_number, &page_number);
-        if(isItInvalid(segment_number,page_number) != 0 && IsItInPageTable(PAGE_TABLE,segment_number,page_number) != 0){
-            page_table[index][0] = 0;
-            page_table[index][1] = segment_number;
-            page_table[index][2] = page_number;
-        }
-        index++;
-    }
-}
 
 void clearPageTable(int page_table[100][3]){
     for(int i=0; i<100; i++){
@@ -223,23 +201,6 @@ int isItInvalid(int segment_number, int page_number){
         return 0;
     }
     return 1;
-}
-
-// Resets the physical memory
-void clearPhysicalMemory(int memory[3][2]){
-    for(int i=0; i < 3 ; i++){
-        memory[i][0] = 0;
-        memory[i][1] = 0;
-    }
-}
-// Checks if the value in Physical Memory
-int IsItInPhysicalMemory(int memory[3][2], int segment_number, int page_number){
-    for(int i=0; i < 3 ; i++){
-        if( memory[i][0] == segment_number && memory[i][1] == page_number){
-            return 0;
-        }
-    }
-    return -1;
 }
 
 // Clears all the values in TLB
