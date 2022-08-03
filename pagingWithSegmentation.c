@@ -44,6 +44,29 @@ int TLB[50][3];
 int PHYSICAL_MEMORY[3][2];
 int PAGE_TABLE[100][3];
 
+int runSimulaton(char *executableFile, char *filename);
+void doOperations(int segment_number, int page_number);
+void fillPageTable(int page_table[100][3], char *filename);
+void clearPageTable(int page_table[100][3]);
+void increaseUsageCounterInPageTable(int page_table[100][3], int index);
+int findPlaceInPageTable(int page_table[100][3]);
+int getIndexInPageTable(int page_table[100][3], int segment_number, int page_number);
+int IsItInPageTable(int page_table[100][3], int segment_number, int page_number);
+int isItInvalid(int segment_number, int page_number);
+void clearPhysicalMemory(int memory[3][2]);
+int IsItInPhysicalMemory(int memory[3][2], int segment_number, int page_number);
+void clearTLB(int tlb[50][3]);
+void increaseTimeStamp(int tlb[50][3]);
+int findPlaceInTLB(int tlb[50][3]);
+int IsItInTLB(int tlb [50][3], int segment_number, int page_number);
+int findTheOldest(int tlb[50][3]);
+void findPhysicalFrames();
+void findSegmentPages();
+int findSegmentInfos( char *executableFileName);
+void printPageTable(int page_table[100][3]);
+void printTLB(int tlb[50][3]);
+void printSimulationResults();
+
 int main(int argc, char *argv[]){
     
     if ( runSimulaton(argv[1], argv[2]) == -1){
@@ -142,7 +165,7 @@ void fillPageTable(int page_table[100][3], char *filename){
         int segment_number;
         int page_number;
         sscanf( buffer, "%d %d", &segment_number, &page_number);
-        if(isItInvalid(segment_number,page_number) != 0){
+        if(isItInvalid(segment_number,page_number) != 0 && IsItInPageTable(PAGE_TABLE,segment_number,page_number) != 0){
             page_table[index][0] = 0;
             page_table[index][1] = segment_number;
             page_table[index][2] = page_number;
