@@ -197,7 +197,7 @@ int isItInvalid(int segment_number, int page_number){
     if(segment_number < 0 || segment_number > 2){
         return 0;
     }
-    else if( page_number > segments[segment_number]-1 || page_number < 0){
+    else if( page_number >= segments[segment_number]-1 || page_number < 0){
         return 0;
     }
     return 1;
