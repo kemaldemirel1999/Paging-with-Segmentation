@@ -108,14 +108,14 @@ void doOperations(int segment_number, int page_number){
     int invalidReference = isItInvalid(segment_number, page_number);
     if(invalidReference == 0){
         numberOfInvalidReference++;
-        printf("INVALID:%d,%d\n",segment_number, page_number);
+        //printf("INVALID:%d,%d\n",segment_number, page_number);
     }
     else{
         if(IsItInTLB(TLB, segment_number, page_number) == 0){
             sleep(TLB_HIT);
             totalDelay += TLB_HIT*1000;
             numberOfAccess++;
-            printf("IN TLB:%d,%d\n",segment_number, page_number);
+            //printf("IN TLB:%d,%d\n",segment_number, page_number);
         }
         else if(IsItInPageTable(PAGE_TABLE, segment_number, page_number) == 0){
             sleep(TLB_MISS_WITHOUT_PAGE_FAULT);
@@ -124,7 +124,7 @@ void doOperations(int segment_number, int page_number){
             numberOfTLBMiss++;
             int index = getIndexInPageTable(PAGE_TABLE, segment_number, page_number);
             increaseUsageCounterInPageTable(PAGE_TABLE, index);
-            printf("PAGE TABLE:%d,%d\n",segment_number, page_number);
+            //printf("PAGE TABLE:%d,%d\n",segment_number, page_number);
             int tlb_index = findPlaceInTLB(TLB);
             TLB[tlb_index][0] = 0;
             TLB[tlb_index][1] = segment_number;
@@ -140,7 +140,7 @@ void doOperations(int segment_number, int page_number){
             PAGE_TABLE[index][0] = 0;
             PAGE_TABLE[index][1] = segment_number;
             PAGE_TABLE[index][2] = page_number;
-            printf("PAGE FAULT:%d,%d\n",segment_number, page_number);
+            //printf("PAGE FAULT:%d,%d\n",segment_number, page_number);
             int tlb_index = findPlaceInTLB(TLB);
             TLB[tlb_index][0] = 0;
             TLB[tlb_index][1] = segment_number;
